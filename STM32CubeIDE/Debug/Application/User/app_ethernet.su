@@ -1,0 +1,4 @@
+C:/STM32 Workspace/LwIP_HTTP_Server_Netconn_RTOS/Src/app_ethernet.c:50:6:ethernet_link_status_updated	16	static
+C:/STM32 Workspace/LwIP_HTTP_Server_Netconn_RTOS/Src/app_ethernet.c:80:6:DHCP_Thread	40	static
+C:/STM32 Workspace/LwIP_HTTP_Server_Netconn_RTOS/Src/app_ethernet.c:166:6:Ethernet_EnableDHCP	4	static
+C:/STM32 Workspace/LwIP_HTTP_Server_Netconn_RTOS/Src/app_ethernet.c:172:6:Ethernet_EnableStatic	24	static
