@@ -389,7 +389,7 @@ static void tcp_echoserver_send(struct tcp_pcb *tpcb, struct tcp_echoserver_stru
   struct pbuf *ptr;
   err_t wr_err = ERR_OK;
 
-  char prompt[] = "\r\nSTM32> ";
+  char prompt[] = "\r\nCoral> ";
 
   while ((wr_err == ERR_OK) &&
          (es->p != NULL) &&
@@ -405,280 +405,291 @@ static void tcp_echoserver_send(struct tcp_pcb *tpcb, struct tcp_echoserver_stru
     memcpy(cmd, ptr->payload, ptr->len);
     cmd[ptr->len] = '\0';
 
-    cmd[strcspn(cmd, "\r\n")] = '\0';
 
-    if(strlen(cmd) != 0)
+    uint8_t *data = (uint8_t *)ptr->payload;
+
+    /* Ignore Telnet negotiation packets */
+    if (ptr->len > 0 && data[0] == 0xFF)
     {
-    	if(es->state == ES_WAIT_USERNAME)
+        wr_err = ERR_OK;
+    }
+    else
+    {
+    	cmd[strcspn(cmd, "\r\n")] = '\0';
+
+    	    if(strlen(cmd) != 0)
     	    {
-    	        strcpy(es->username, cmd);
-
-    	        es->state = ES_WAIT_PASSWORD;
-
-    	        char msg[] = "\r\nPassword: ";
-
-    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
-
-    	    }
-    	    else if(es->state == ES_WAIT_PASSWORD)
-    	    {
-    	        if(strcmp(es->username, "sudeepk") == 0 &&
-    	           strcmp(cmd, "pass@123") == 0)
-    	        {
-    	            es->state = ES_AUTHENTICATED;
-
-    	            char msg[] =
-    	            "\r\nLogin Successful\r\n"
-    	            "\r\nSTM32> ";
-
-    	            wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
-
-    	        }
-    	        else
-    	        {
-    	            es->state = ES_WAIT_USERNAME;
-
-    	            char msg[] =
-    	            "\r\nInvalid Login\r\nUsername: ";
-
-    	            wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
-
-    	        }
-    	    }
-    	    else if(es->state == ES_AUTHENTICATED)
-    	    {
-    	    	if(strcmp(cmd, "logout") == 0)
-    	    	{
-    	    	        es->state = ES_WAIT_USERNAME;
-
-
-    	    	        char msg[] =
-    	    	                "\r\nLogged Out\r\n"
-    	    	                "Username: ";
-
-    	    	        wr_err = tcp_write(tpcb,
-    	    	                           msg,
-    	    	                           strlen(msg),
-    	    	                           1);
-    	    	 }
-    	    	else if(strcmp(cmd, "dhcp") == 0)
-    	    	{
-    	    	    Ethernet_EnableDHCP();
-
-    	    	    char msg[] =
-    	    	    "\r\nSwitched to DHCP mode\r\n"
-    	    	    "\r\nSTM32> ";
-
-    	    	    wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
-    	    	}
-    	    	else if(strncmp(cmd, "static ", 7) == 0)
-    	    	{
-    	    	    char ip[20];
-    	    	    char mask[20];
-    	    	    char gw[20];
-
-    	    	    if(sscanf(cmd,
-    	    	              "static %19s %19s %19s",
-    	    	              ip,
-    	    	              mask,
-    	    	              gw) == 3)
+    	    	if(es->state == ES_WAIT_USERNAME)
     	    	    {
-    	    	    	ip_addr_t ipaddr;
-    	    	    	ip_addr_t netmask;
-    	    	    	ip_addr_t gateway;
+    	    	        strcpy(es->username, cmd);
 
-    	    	    	ipaddr_aton(ip, &ipaddr);
-    	    	    	ipaddr_aton(mask, &netmask);
-    	    	    	ipaddr_aton(gw, &gateway);
+    	    	        es->state = ES_WAIT_PASSWORD;
 
-    	    	    	Ethernet_EnableStatic(&ipaddr,
-    	    	    	                      &netmask,
-    	    	    	                      &gateway);
+    	    	        char msg[] = "\rPassword: ";
 
-    	    	    	char msg[] =
-    	    	    	"Static IP configured\r\n"
-    	    	    	"\r\nSTM32> ";
+    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
 
-    	    	        wr_err = tcp_write(tpcb,
-    	    	                           msg,
-    	    	                           strlen(msg),
-    	    	                           1);
     	    	    }
-    	    	    else
+    	    	    else if(es->state == ES_WAIT_PASSWORD)
     	    	    {
-    	    	        char msg[] =
-    	    	        "\r\nUsage:\r\n"
-    	    	        "static <ip> <mask> <gateway>\r\n";
+    	    	        if(strcmp(es->username, "sudeepk") == 0 &&
+    	    	           strcmp(cmd, "pass@123") == 0)
+    	    	        {
+    	    	            es->state = ES_AUTHENTICATED;
 
-    	    	        wr_err = tcp_write(tpcb,
-    	    	                           msg,
-    	    	                           strlen(msg),
-    	    	                           1);
+    	    	            char msg[] =
+    	    	            "\r\nLogin Successful\r\n"
+    	    	            "\r\nCoral> ";
+
+    	    	            wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
+
+    	    	        }
+    	    	        else
+    	    	        {
+    	    	            es->state = ES_WAIT_USERNAME;
+
+    	    	            char msg[] =
+    	    	            "\r\nInvalid Login\r\nUsername: ";
+
+    	    	            wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
+
+    	    	        }
     	    	    }
-    	    	}
-    	    	else if(strcmp(cmd, "show ip") == 0)
-    	    	{
-    	    		char msg[50];
+    	    	    else if(es->state == ES_AUTHENTICATED)
+    	    	    {
+    	    	    	if(strcmp(cmd, "logout") == 0)
+    	    	    	{
+    	    	    	        es->state = ES_WAIT_USERNAME;
 
-    	    		sprintf(msg,
-    	    		        "\r\nIP : %s\r\n",
-    	    		        ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 
-    	    		wr_err = tcp_write(tpcb,
-    	    		                   msg,
-    	    		                   strlen(msg),
-    	    		                   1);
+    	    	    	        char msg[] =
+    	    	    	                "\r\nLogged Out\r\n"
+    	    	    	                "Username: ";
 
-    	    		sprintf(msg,
-    	    		        "Mask : %s\r\n",
-    	    		        ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
+    	    	    	        wr_err = tcp_write(tpcb,
+    	    	    	                           msg,
+    	    	    	                           strlen(msg),
+    	    	    	                           1);
+    	    	    	 }
+    	    	    	else if(strcmp(cmd, "dhcp") == 0)
+    	    	    	{
+    	    	    	    Ethernet_EnableDHCP();
 
-    	    		wr_err = tcp_write(tpcb,
-    	    		                   msg,
-    	    		                   strlen(msg),
-    	    		                   1);
+    	    	    	    char msg[] =
+    	    	    	    "\r\nSwitched to DHCP mode\r\n"
+    	    	    	    "\r\nCoral> ";
 
-    	    		sprintf(msg,
-    	    		        "Gateway : %s\r\n",
-    	    		        ip4addr_ntoa(netif_ip4_gw(&gnetif)));
+    	    	    	    wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
+    	    	    	}
+    	    	    	else if(strncmp(cmd, "static ", 7) == 0)
+    	    	    	{
+    	    	    	    char ip[20];
+    	    	    	    char mask[20];
+    	    	    	    char gw[20];
 
-    	    		wr_err = tcp_write(tpcb,
-    	    		                   msg,
-    	    		                   strlen(msg),
-    	    		                   1);
+    	    	    	    if(sscanf(cmd,
+    	    	    	              "static %19s %19s %19s",
+    	    	    	              ip,
+    	    	    	              mask,
+    	    	    	              gw) == 3)
+    	    	    	    {
+    	    	    	    	ip_addr_t ipaddr;
+    	    	    	    	ip_addr_t netmask;
+    	    	    	    	ip_addr_t gateway;
 
-    	    		wr_err = tcp_write(tpcb,
-    	    		                   prompt,
-    	    		                   strlen(prompt),
-    	    		                   1);
-    	    	}
-    	    	else if(strcmp(cmd, "status") == 0)
-    	    	{
-    	    		char msg[300];
+    	    	    	    	ipaddr_aton(ip, &ipaddr);
+    	    	    	    	ipaddr_aton(mask, &netmask);
+    	    	    	    	ipaddr_aton(gw, &gateway);
 
-    	    		char ip[20];
-    	    		char mask[20];
-    	    		char gateway[20];
+    	    	    	    	Ethernet_EnableStatic(&ipaddr,
+    	    	    	    	                      &netmask,
+    	    	    	    	                      &gateway);
 
-    	    		ip4addr_ntoa_r(netif_ip4_addr(&gnetif), ip, sizeof(ip));
-    	    		ip4addr_ntoa_r(netif_ip4_netmask(&gnetif), mask, sizeof(mask));
-    	    		ip4addr_ntoa_r(netif_ip4_gw(&gnetif), gateway, sizeof(gateway));
+    	    	    	    	char msg[] =
+    	    	    	    	"Static IP configured\r\n"
+    	    	    	    	"\r\nCoral> ";
 
-    	    		sprintf(msg,
-    	    		        "\r\n"
-    	    		        "IP      : %s\r\n"
-    	    		        "Mask    : %s\r\n"
-    	    		        "Gateway : %s\r\n"
-    	    		        "Mode    : %s\r\n"
-    	    		        "Green   : %s\r\n"
-    	    		        "Red     : %s\r\n"
-    	    		        "\r\nSTM32> ",
-    	    		        ip,
-    	    		        mask,
-    	    		        gateway,
-    	    		        use_dhcp ? "DHCP" : "STATIC",
-    	    		        HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) ? "ON" : "OFF",
-    	    		        HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) ? "ON" : "OFF");
+    	    	    	        wr_err = tcp_write(tpcb,
+    	    	    	                           msg,
+    	    	    	                           strlen(msg),
+    	    	    	                           1);
+    	    	    	    }
+    	    	    	    else
+    	    	    	    {
+    	    	    	        char msg[] =
+    	    	    	        "\r\nUsage:\r\n"
+    	    	    	        "static <ip> <mask> <gateway>\r\n";
 
-    	    		wr_err = tcp_write(tpcb,
-    	    		                   msg,
-    	    		                   strlen(msg),
-    	    		                   1);
+    	    	    	        wr_err = tcp_write(tpcb,
+    	    	    	                           msg,
+    	    	    	                           strlen(msg),
+    	    	    	                           1);
+    	    	    	    }
+    	    	    	}
+    	    	    	else if(strcmp(cmd, "show ip") == 0)
+    	    	    	{
+    	    	    		char msg[50];
 
-    	    	}
-    	    	else if(strcmp(cmd, "uptime") == 0)
-    	    	{
-    	    	    char msg[100];
+    	    	    		sprintf(msg,
+    	    	    		        "\r\nIP : %s\r\n",
+    	    	    		        ip4addr_ntoa(netif_ip4_addr(&gnetif)));
 
-    	    	    uint32_t ms = HAL_GetTick();
+    	    	    		wr_err = tcp_write(tpcb,
+    	    	    		                   msg,
+    	    	    		                   strlen(msg),
+    	    	    		                   1);
 
-    	    	    uint32_t seconds = ms / 1000;
-    	    	    uint32_t minutes = seconds / 60;
-    	    	    uint32_t hours   = minutes / 60;
+    	    	    		sprintf(msg,
+    	    	    		        "Mask : %s\r\n",
+    	    	    		        ip4addr_ntoa(netif_ip4_netmask(&gnetif)));
 
-    	    	    seconds %= 60;
-    	    	    minutes %= 60;
+    	    	    		wr_err = tcp_write(tpcb,
+    	    	    		                   msg,
+    	    	    		                   strlen(msg),
+    	    	    		                   1);
 
-    	    	    sprintf(msg,
-    	    	            "\r\n"
-    	    	            "Uptime : %luh %lum %lus\r\n"
-    	    	            "\r\nSTM32> ",
-    	    	            hours,
-    	    	            minutes,
-    	    	            seconds);
+    	    	    		sprintf(msg,
+    	    	    		        "Gateway : %s\r\n",
+    	    	    		        ip4addr_ntoa(netif_ip4_gw(&gnetif)));
 
-    	    	    wr_err = tcp_write(tpcb,
-    	    	                       msg,
-    	    	                       strlen(msg),
-    	    	                       1);
-    	    	}
-    	    	else if(strcmp(cmd, "help") == 0)
-    	    	{
-    	    	    char msg[] =
-    	    	            "\r\n"
-    	    	            "Available Commands\r\n"
-    	    	            "------------------\r\n"
-    	    	            "help\r\n"
-    	    	            "status\r\n"
-    	    	            "show ip\r\n"
-    	    	            "uptime\r\n"
-    	    	            "dhcp\r\n"
-    	    	            "static <ip> <mask> <gateway>\r\n"
-    	    	            "Green On\r\n"
-    	    	            "Green Off\r\n"
-    	    	            "Red On\r\n"
-    	    	            "Red Off\r\n"
-    	    	            "logout\r\n"
-    	    	            "\r\nSTM32> ";
+    	    	    		wr_err = tcp_write(tpcb,
+    	    	    		                   msg,
+    	    	    		                   strlen(msg),
+    	    	    		                   1);
 
-    	    	    wr_err = tcp_write(tpcb,
-    	    	                       msg,
-    	    	                       strlen(msg),
-    	    	                       1);
-    	    	}
-    	    	else if (strcmp(cmd, "Green On") == 0)
-    	    	{
-    	    	        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+    	    	    		wr_err = tcp_write(tpcb,
+    	    	    		                   prompt,
+    	    	    		                   strlen(prompt),
+    	    	    		                   1);
+    	    	    	}
+    	    	    	else if(strcmp(cmd, "status") == 0)
+    	    	    	{
+    	    	    		char msg[300];
 
-    	    	        char msg[] =
-    	    	        "\r\nPB0 HIGH\r\n"
-    	    	        "\r\nSTM32> ";
-    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
-    	    	}
-    	    	else if (strcmp(cmd, "Green Off") == 0)
-    	    	{
-    	    	        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+    	    	    		char ip[20];
+    	    	    		char mask[20];
+    	    	    		char gateway[20];
 
-    	    	        char msg[] =
-    	    	        "\r\nPB0 LOW\r\n"
-    	    	        "\r\nSTM32> ";
-    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
-    	    	}
-    	    	else if (strcmp(cmd, "Red On") == 0)
-    	    	{
-    	    	        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+    	    	    		ip4addr_ntoa_r(netif_ip4_addr(&gnetif), ip, sizeof(ip));
+    	    	    		ip4addr_ntoa_r(netif_ip4_netmask(&gnetif), mask, sizeof(mask));
+    	    	    		ip4addr_ntoa_r(netif_ip4_gw(&gnetif), gateway, sizeof(gateway));
 
-    	    	        char msg[] =
-    	    	        "\r\nPB14 HIGH\r\n"
-    	    	        "\r\nSTM32> ";
-    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
-    	    	}
-    	    	else if (strcmp(cmd, "Red Off") == 0)
-    	    	{
-    	    	        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+    	    	    		sprintf(msg,
+    	    	    		        "\r\n"
+    	    	    		        "IP      : %s\r\n"
+    	    	    		        "Mask    : %s\r\n"
+    	    	    		        "Gateway : %s\r\n"
+    	    	    		        "Mode    : %s\r\n"
+    	    	    		        "Green   : %s\r\n"
+    	    	    		        "Red     : %s\r\n"
+    	    	    		        "\r\nCoral> ",
+    	    	    		        ip,
+    	    	    		        mask,
+    	    	    		        gateway,
+    	    	    		        use_dhcp ? "DHCP" : "STATIC",
+    	    	    		        HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) ? "ON" : "OFF",
+    	    	    		        HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) ? "ON" : "OFF");
 
-    	    	        char msg[] =
-    	    	        "\r\nPB14 LOW\r\n"
-    	    	        "\r\nSTM32> ";
-    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
-    	    	}
-    	    	else
-    	    	{
-    	    		char msg[] =
-    	    		"\r\nERROR: Unknown command!\r\n"
-    	    		"\r\nSTM32> ";
-    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
-    	    	}
+    	    	    		wr_err = tcp_write(tpcb,
+    	    	    		                   msg,
+    	    	    		                   strlen(msg),
+    	    	    		                   1);
+
+    	    	    	}
+    	    	    	else if(strcmp(cmd, "uptime") == 0)
+    	    	    	{
+    	    	    	    char msg[100];
+
+    	    	    	    uint32_t ms = HAL_GetTick();
+
+    	    	    	    uint32_t seconds = ms / 1000;
+    	    	    	    uint32_t minutes = seconds / 60;
+    	    	    	    uint32_t hours   = minutes / 60;
+
+    	    	    	    seconds %= 60;
+    	    	    	    minutes %= 60;
+
+    	    	    	    sprintf(msg,
+    	    	    	            "\r\n"
+    	    	    	            "Uptime : %luh %lum %lus\r\n"
+    	    	    	            "\r\nCoral> ",
+    	    	    	            hours,
+    	    	    	            minutes,
+    	    	    	            seconds);
+
+    	    	    	    wr_err = tcp_write(tpcb,
+    	    	    	                       msg,
+    	    	    	                       strlen(msg),
+    	    	    	                       1);
+    	    	    	}
+    	    	    	else if(strcmp(cmd, "help") == 0)
+    	    	    	{
+    	    	    	    char msg[] =
+    	    	    	            "\r\n"
+    	    	    	            "Available Commands\r\n"
+    	    	    	            "------------------\r\n"
+    	    	    	            "help\r\n"
+    	    	    	            "status\r\n"
+    	    	    	            "show ip\r\n"
+    	    	    	            "uptime\r\n"
+    	    	    	            "dhcp\r\n"
+    	    	    	            "static <ip> <mask> <gateway>\r\n"
+    	    	    	            "Green On\r\n"
+    	    	    	            "Green Off\r\n"
+    	    	    	            "Red On\r\n"
+    	    	    	            "Red Off\r\n"
+    	    	    	            "logout\r\n"
+    	    	    	            "\r\nCoral> ";
+
+    	    	    	    wr_err = tcp_write(tpcb,
+    	    	    	                       msg,
+    	    	    	                       strlen(msg),
+    	    	    	                       1);
+    	    	    	}
+    	    	    	else if (strcmp(cmd, "Green On") == 0)
+    	    	    	{
+    	    	    	        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+
+    	    	    	        char msg[] =
+    	    	    	        "\r\nPB0 HIGH\r\n"
+    	    	    	        "\r\nCoral> ";
+    	    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
+    	    	    	}
+    	    	    	else if (strcmp(cmd, "Green Off") == 0)
+    	    	    	{
+    	    	    	        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+
+    	    	    	        char msg[] =
+    	    	    	        "\r\nPB0 LOW\r\n"
+    	    	    	        "\r\nCoral> ";
+    	    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
+    	    	    	}
+    	    	    	else if (strcmp(cmd, "Red On") == 0)
+    	    	    	{
+    	    	    	        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+
+    	    	    	        char msg[] =
+    	    	    	        "\r\nPB14 HIGH\r\n"
+    	    	    	        "\r\nCoral> ";
+    	    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
+    	    	    	}
+    	    	    	else if (strcmp(cmd, "Red Off") == 0)
+    	    	    	{
+    	    	    	        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+
+    	    	    	        char msg[] =
+    	    	    	        "\r\nPB14 LOW\r\n"
+    	    	    	        "\r\nCoral> ";
+    	    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
+    	    	    	}
+    	    	    	else
+    	    	    	{
+    	    	    		char msg[] =
+    	    	    		"\r\nERROR: Unknown command!\r\n"
+    	    	    		"\r\nCoral> ";
+    	    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
+    	    	    	}
+    	    	    }
     	    }
     }
 
