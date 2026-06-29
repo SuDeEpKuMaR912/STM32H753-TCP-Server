@@ -43,6 +43,8 @@
 #include <stdio.h>
 #include "app_ethernet.h"
 
+static const uint8_t telnet_echo_off[] = {255, 252, 1};   // IAC WONT ECHO
+static const uint8_t telnet_echo_on[]  = {255, 251, 1};   // IAC WILL ECHO
 
 extern struct netif gnetif;
 extern uint8_t use_dhcp;
@@ -425,9 +427,19 @@ static void tcp_echoserver_send(struct tcp_pcb *tpcb, struct tcp_echoserver_stru
 
     	    	        es->state = ES_WAIT_PASSWORD;
 
+    	    	        tcp_write(tpcb,
+    	    	                  telnet_echo_on,
+    	    	                  sizeof(telnet_echo_on),
+    	    	                  1);
+
     	    	        char msg[] = "\rPassword: ";
 
-    	    	        wr_err = tcp_write(tpcb, msg, strlen(msg), 1);
+    	    	        wr_err = tcp_write(tpcb,
+    	    	                           msg,
+    	    	                           strlen(msg),
+    	    	                           1);
+
+    	    	        tcp_output(tpcb);
 
     	    	    }
     	    	    else if(es->state == ES_WAIT_PASSWORD)
@@ -436,6 +448,11 @@ static void tcp_echoserver_send(struct tcp_pcb *tpcb, struct tcp_echoserver_stru
     	    	           strcmp(cmd, "pass@123") == 0)
     	    	        {
     	    	            es->state = ES_AUTHENTICATED;
+
+    	    	            tcp_write(tpcb,
+    	    	                      telnet_echo_off,
+    	    	                      sizeof(telnet_echo_off),
+    	    	                      1);
 
     	    	            char msg[] =
     	    	            "\r\nLogin Successful\r\n"
