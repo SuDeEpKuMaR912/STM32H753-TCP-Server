@@ -36,7 +36,7 @@ uint8_t use_dhcp = 0;
 
 ip_addr_t user_ip = IPADDR4_INIT_BYTES(192,168,80,120);
 ip_addr_t user_netmask = IPADDR4_INIT_BYTES(255,255,255,0);
-ip_addr_t user_gateway = IPADDR4_INIT_BYTES(192,168,80,94);
+ip_addr_t user_gateway = IPADDR4_INIT_BYTES(192,168,0,163);
 
 
 
